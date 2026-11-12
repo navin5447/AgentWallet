@@ -1,0 +1,30 @@
+services:
+  backend:
+    build: ./backend
+    environment:
+      PORT: 4000
+      MONGODB_URI: mongodb://mongo:27017
+      MONGODB_DB: agentwallet
+      FRONTEND_ORIGIN: http://localhost:5173
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      PAYPAL_ENV: sandbox
+      PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID:-}
+      PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET:-}
+      PAYPAL_WEBHOOK_ID: ${PAYPAL_WEBHOOK_ID:-}
+    ports:
+      - "4000:4000"
+    depends_on:
+      - mongo
+  mongo:
+    image: mongo:7
+    volumes:
+      - agentwallet-mongo:/data/db
+  frontend:
+    build: ./frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+volumes:
+  agentwallet-mongo:
