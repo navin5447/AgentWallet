@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 import './style.css';
 import LivePipeline from './components/LivePipeline.jsx';
 
-const API = 'http://localhost:4000';
+const API = import.meta.env.VITE_API_URL || 'http://localhost:4000';
 const defaultPolicy = {
   totalBudget: 250, spentAmount: 69.99, reservedAmount: 0, perTransactionLimit: 75,
   approvalThreshold: 40, allowedMerchants: ['BookStore', 'StudyHub', 'TechTown', 'CampusCafe'],
