@@ -50,7 +50,8 @@ The repository includes [`render.yaml`](./render.yaml) for the API and [`fronten
 3. In Vercel, import this repository and set **Root Directory** to `frontend`.
 4. Add the Vercel environment variable `VITE_API_URL=https://agentwallet-pf6t.onrender.com`.
 5. Redeploy the Vercel project after saving the environment variable.
-6. Set Render's `FRONTEND_ORIGIN` to the final Vercel URL.
+6. Set Render's `FRONTEND_ORIGIN` to the exact Vercel origin, with no trailing slash. Multiple origins may be comma-separated:
+   `https://your-production-app.vercel.app,https://your-preview.vercel.app`
 7. Register `https://agentwallet-pf6t.onrender.com/api/webhooks/paypal` in the PayPal Developer Dashboard and then set `PAYPAL_WEBHOOK_ID` in Render.
 
 Never commit `backend/.env` or paste credentials into GitHub. Rotate credentials that have previously been exposed.

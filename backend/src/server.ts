@@ -11,11 +11,21 @@ import { attackLabRouter } from './routes/attack-lab.js';
 import { getDatabaseStatus } from './db/store.js';
 
 const app = express();
-app.use(cors({ origin: process.env.FRONTEND_ORIGIN || 'http://localhost:5173', credentials: true }));
+const configuredOrigins = (process.env.FRONTEND_ORIGIN || 'http://localhost:5173')
+  .split(',')
+  .map(value => value.trim().replace(/\/+$/, ''))
+  .filter(Boolean);
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || configuredOrigins.includes(origin.replace(/\/+$/, ''))) return callback(null, true);
+    return callback(new Error('Origin is not allowed by AgentWallet CORS policy.'));
+  },
+  credentials: true,
+}));
 app.use(express.json({ limit: '32kb' }));
 app.use(rateLimit());
 app.get('/', (_req, res) => {
-  res.redirect(process.env.FRONTEND_ORIGIN || 'http://localhost:5173');
+  res.redirect(configuredOrigins[0]);
 });
 app.get('/health', async (_req, res) => {
   const database = await getDatabaseStatus();
