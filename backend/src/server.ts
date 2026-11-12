@@ -16,9 +16,11 @@ const configuredOrigins = (process.env.FRONTEND_ORIGIN || 'http://localhost:5173
   .split(',')
   .map(value => value.trim().replace(/\/+$/, ''))
   .filter(Boolean);
+const isAllowedOrigin = (origin: string) => configuredOrigins.includes(origin.replace(/\/+$/, ''))
+  || /^https:\/\/frontend-[a-z0-9-]+-navins-projects-ed84ce2d\.vercel\.app$/i.test(origin);
 app.use(cors({
   origin: (origin, callback) => {
-    if (!origin || configuredOrigins.includes(origin.replace(/\/+$/, ''))) return callback(null, true);
+    if (!origin || isAllowedOrigin(origin)) return callback(null, true);
     return callback(new Error('Origin is not allowed by AgentWallet CORS policy.'));
   },
   credentials: true,
