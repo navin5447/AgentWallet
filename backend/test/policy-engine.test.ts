@@ -32,6 +32,9 @@ describe('evaluateGuardrails', () => {
   it('blocks an exact duplicate charge', () => {
     expect(evaluateGuardrails(product, policy, [product]).reasons).toContain('Duplicate charge detected for this merchant, item, and amount.');
   });
+  it('allows the same product before a prior payment is confirmed', () => {
+    expect(evaluateGuardrails(product, policy, []).passed).toBe(true);
+  });
   it('matches a study book task to a book product', () => {
     expect(productMatchesTask('Order a study book for my group under $40', product)).toBe(true);
   });

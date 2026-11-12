@@ -37,7 +37,7 @@ purchaseRouter.post('/evaluate', async (req, res) => {
   let auditor: Awaited<ReturnType<typeof runAuditor>> | null = null;
   let status: PurchaseStatus = 'DRAFT';
   const previousProducts = (await listLedger())
-    .filter(record => ['CAPTURED', 'ORDER_CREATED', 'BUYER_APPROVED'].includes(record.status))
+    .filter(record => record.status === 'CAPTURED')
     .map(record => record.product as ProductInput);
   let guardrail = evaluateGuardrails(product, policy, previousProducts);
   let explanation = '';
