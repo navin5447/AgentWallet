@@ -27,6 +27,26 @@ async function getCollection() {
   return client.db(process.env.MONGODB_DB || 'agentwallet').collection<LedgerRecord>('audit_log');
 }
 
+export async function getDatabaseStatus() {
+  if (pool) {
+    try {
+      await pool.query('SELECT 1');
+      return 'connected' as const;
+    } catch {
+      return 'disconnected' as const;
+    }
+  }
+  if (!process.env.MONGODB_URI) return 'not_configured' as const;
+  try {
+    client ??= new MongoClient(process.env.MONGODB_URI);
+    await client.connect();
+    await client.db(process.env.MONGODB_DB || 'agentwallet').command({ ping: 1 });
+    return 'connected' as const;
+  } catch {
+    return 'disconnected' as const;
+  }
+}
+
 export async function saveLedger(input: Omit<LedgerRecord, 'id' | 'createdAt' | 'updatedAt'>) {
   const now = new Date().toISOString();
   const record: LedgerRecord = { ...input, id: randomUUID(), createdAt: now, updatedAt: now };

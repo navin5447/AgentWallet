@@ -54,3 +54,5 @@ The repository includes [`render.yaml`](./render.yaml) for the API and [`fronten
 7. Register `https://agentwallet-pf6t.onrender.com/api/webhooks/paypal` in the PayPal Developer Dashboard and then set `PAYPAL_WEBHOOK_ID` in Render.
 
 Never commit `backend/.env` or paste credentials into GitHub. Rotate credentials that have previously been exposed.
+
+The Render service must have `NODE_ENV=production` and `PAYPAL_WEBHOOK_ID` set to the **Webhook ID** returned by PayPal (not the PayPal client ID, client secret, or an API key). The `/health` endpoint reports `database: "connected"` only after it successfully pings MongoDB Atlas. Set `MONGODB_URI` and `MONGODB_DB=agentwallet` in Render, then redeploy.

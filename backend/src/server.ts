@@ -2,13 +2,13 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { purchaseRouter } from './routes/purchase.js';
-import { pool } from './db/pool.js';
 import { catalog, attackProduct } from './catalog.js';
 import { webhookRouter } from './routes/webhooks.js';
 import { authRouter } from './routes/auth.js';
 import { policyRouter } from './routes/policy.js';
 import { rateLimit } from './rate-limit.js';
 import { attackLabRouter } from './routes/attack-lab.js';
+import { getDatabaseStatus } from './db/store.js';
 
 const app = express();
 app.use(cors({ origin: process.env.FRONTEND_ORIGIN || 'http://localhost:5173', credentials: true }));
@@ -18,12 +18,8 @@ app.get('/', (_req, res) => {
   res.redirect(process.env.FRONTEND_ORIGIN || 'http://localhost:5173');
 });
 app.get('/health', async (_req, res) => {
-  let database = 'not_configured';
-  if (pool) {
-    try { await pool.query('SELECT 1'); database = 'connected'; }
-    catch { database = 'disconnected'; }
-  }
-  res.json({ status: 'ok', service: 'agentwallet-api', database });
+  const database = await getDatabaseStatus();
+  res.status(database === 'disconnected' ? 503 : 200).json({ status: 'ok', service: 'agentwallet-api', database });
 });
 app.get('/api/catalog', (_req, res) => res.json({ catalog, attackProduct }));
 app.use('/api/auth', authRouter);
