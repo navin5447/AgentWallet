@@ -31,6 +31,9 @@ function App() {
   const [dark, setDark] = useState(true);
 
   const refreshLedger = () => fetch(`${API}/api/purchase/audit-log`).then(r => r.json()).then(setLedger).catch(() => {});
+  const refreshSummary = () => fetch(`${API}/api/dashboard/summary`).then(r => r.json()).then(summary => {
+    setPolicy(current => ({ ...current, spentAmount: Number(summary.totalSpent || 0), reservedAmount: Number(summary.reservedAmount || 0) }));
+  }).catch(() => {});
   useEffect(() => {
     fetch(`${API}/api/catalog`).then(r => r.json()).then(data => setCatalog(data.catalog)).catch(() => {});
     refreshLedger();
@@ -39,9 +42,7 @@ function App() {
       setAuthenticated(response.ok);
     }).catch(() => setAuthenticated(false));
     fetch(`${API}/api/dashboard/analytics`).then(response => response.json()).then(setAnalytics).catch(() => {});
-    fetch(`${API}/api/dashboard/summary`).then(response => response.json()).then(summary => {
-      setPolicy(current => ({ ...current, spentAmount: Number(summary.totalSpent || 0), reservedAmount: Number(summary.reservedAmount || 0) }));
-    }).catch(() => {});
+    refreshSummary();
   }, []);
 
   const remaining = Math.max(0, policy.totalBudget - policy.spentAmount - policy.reservedAmount);
@@ -60,6 +61,7 @@ function App() {
       setResult(data);
       if (data.product) setProduct(data.product);
       refreshLedger();
+      refreshSummary();
     } catch {
       setResult({ status: 'blocked', message: 'API unavailable. Start the backend on port 4000.' });
     } finally { setLoading(false); }
@@ -79,6 +81,7 @@ function App() {
       }
       setResult({ ...result, ...data });
       refreshLedger();
+      refreshSummary();
     } catch {
       setResult({ ...result, status: 'FAILED', explanation: 'Unable to reach the PayPal order service.', pipeline: { ...result.pipeline, payment: 'FAILED' } });
     } finally {
@@ -94,6 +97,7 @@ function App() {
       const data = await response.json();
       setResult({ ...result, ...data });
       refreshLedger();
+      refreshSummary();
     } finally {
       setLoading(false);
     }
