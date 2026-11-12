@@ -5,6 +5,7 @@ import { pool } from './pool.js';
 
 export type LedgerRecord = {
   id: string;
+  userId: string;
   task: string;
   product: Record<string, unknown>;
   guardrail: Record<string, unknown>;
@@ -53,9 +54,9 @@ export async function saveLedger(input: Omit<LedgerRecord, 'id' | 'createdAt' | 
   if (pool) {
     await pool.query(
       `INSERT INTO purchase_evaluations
-       (id, task, product, guardrail_result, planner_result, auditor_result, status, paypal_order_id, paypal_transaction_id, created_at, updated_at)
-       VALUES ($1, $2, $3::jsonb, $4::jsonb, $5::jsonb, $6::jsonb, $7, $8, $9, $10, $10)`,
-      [record.id, record.task, JSON.stringify(record.product), JSON.stringify(record.guardrail), record.planner ? JSON.stringify(record.planner) : null, record.auditor ? JSON.stringify(record.auditor) : null, record.status, record.paypalOrderId || null, record.paypalTransactionId || null, now],
+       (id, user_id, task, product, guardrail_result, planner_result, auditor_result, status, paypal_order_id, paypal_transaction_id, created_at, updated_at)
+       VALUES ($1, $2, $3, $4::jsonb, $5::jsonb, $6::jsonb, $7::jsonb, $8, $9, $10, $11, $11)`,
+      [record.id, record.userId, record.task, JSON.stringify(record.product), JSON.stringify(record.guardrail), record.planner ? JSON.stringify(record.planner) : null, record.auditor ? JSON.stringify(record.auditor) : null, record.status, record.paypalOrderId || null, record.paypalTransactionId || null, now],
     );
     return record;
   }
@@ -65,17 +66,19 @@ export async function saveLedger(input: Omit<LedgerRecord, 'id' | 'createdAt' | 
   return record;
 }
 
-export async function getLedger(id: string) {
+export async function getLedger(id: string, userId?: string) {
   if (pool) {
-    const result = await pool.query('SELECT * FROM purchase_evaluations WHERE id = $1', [id]);
+    const result = await pool.query(userId
+      ? 'SELECT * FROM purchase_evaluations WHERE id = $1 AND user_id = $2'
+      : 'SELECT * FROM purchase_evaluations WHERE id = $1', userId ? [id, userId] : [id]);
     return result.rows[0] ? fromPostgresRow(result.rows[0]) : undefined;
   }
   const collection = await getCollection();
-  if (collection) return collection.findOne({ id });
-  return memory.find(record => record.id === id);
+  if (collection) return collection.findOne(userId ? { id, userId } : { id });
+  return memory.find(record => record.id === id && (!userId || record.userId === userId));
 }
 
-export async function updateLedger(id: string, changes: Partial<LedgerRecord>) {
+export async function updateLedger(id: string, changes: Partial<LedgerRecord>, userId?: string) {
   const updatedAt = new Date().toISOString();
   if (pool) {
     const fields: Record<string, unknown> = {
@@ -86,25 +89,28 @@ export async function updateLedger(id: string, changes: Partial<LedgerRecord>) {
     const updates = Object.entries(fields).filter(([, value]) => value !== undefined);
     if (updates.length) {
       const set = updates.map(([field], index) => `${field} = $${index + 2}`).join(', ');
-      await pool.query(`UPDATE purchase_evaluations SET ${set}, updated_at = $1 WHERE id = $${updates.length + 2}`, [updatedAt, ...updates.map(([, value]) => value), id]);
+      const ownerClause = userId ? ` AND user_id = $${updates.length + 3}` : '';
+      await pool.query(`UPDATE purchase_evaluations SET ${set}, updated_at = $1 WHERE id = $${updates.length + 2}${ownerClause}`, [updatedAt, ...updates.map(([, value]) => value), id, ...(userId ? [userId] : [])]);
     }
-    return getLedger(id);
+    return getLedger(id, userId);
   }
   const collection = await getCollection();
-  if (collection) await collection.updateOne({ id }, { $set: { ...changes, updatedAt } });
-  const record = memory.find(item => item.id === id);
+  if (collection) await collection.updateOne(userId ? { id, userId } : { id }, { $set: { ...changes, updatedAt } });
+  const record = memory.find(item => item.id === id && (!userId || item.userId === userId));
   if (record) Object.assign(record, changes, { updatedAt });
   return record ?? await getLedger(id);
 }
 
-export async function listLedger() {
+export async function listLedger(userId?: string) {
   if (pool) {
-    const result = await pool.query('SELECT * FROM purchase_evaluations ORDER BY created_at DESC LIMIT 100');
+    const result = await pool.query(userId
+      ? 'SELECT * FROM purchase_evaluations WHERE user_id = $1 ORDER BY created_at DESC LIMIT 100'
+      : 'SELECT * FROM purchase_evaluations ORDER BY created_at DESC LIMIT 100', userId ? [userId] : []);
     return result.rows.map(fromPostgresRow);
   }
   const collection = await getCollection();
-  if (collection) return collection.find({}).sort({ createdAt: -1 }).limit(100).toArray();
-  return memory;
+  if (collection) return collection.find(userId ? { userId } : {}).sort({ createdAt: -1 }).limit(100).toArray();
+  return userId ? memory.filter(record => record.userId === userId) : memory;
 }
 
 export async function findByPayPalOrder(orderId: string) {
@@ -122,6 +128,7 @@ export const CONFIRMED_PAYMENT_STATUSES: PurchaseStatus[] = ['CAPTURED'];
 function fromPostgresRow(row: Record<string, unknown>): LedgerRecord {
   return {
     id: String(row.id),
+    userId: String(row.user_id),
     task: String(row.task),
     product: row.product as Record<string, unknown>,
     guardrail: row.guardrail_result as Record<string, unknown>,

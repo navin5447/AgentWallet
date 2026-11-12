@@ -2,6 +2,7 @@ CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 CREATE TABLE IF NOT EXISTS purchase_evaluations (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id TEXT NOT NULL,
   task TEXT NOT NULL,
   product JSONB NOT NULL,
   guardrail_result JSONB NOT NULL,
@@ -16,3 +17,4 @@ CREATE TABLE IF NOT EXISTS purchase_evaluations (
 
 CREATE INDEX IF NOT EXISTS idx_purchase_evaluations_created_at ON purchase_evaluations (created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_purchase_evaluations_status ON purchase_evaluations (status);
+CREATE INDEX IF NOT EXISTS idx_purchase_evaluations_user_id ON purchase_evaluations (user_id);

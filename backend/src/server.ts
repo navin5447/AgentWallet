@@ -9,6 +9,7 @@ import { policyRouter } from './routes/policy.js';
 import { rateLimit } from './rate-limit.js';
 import { attackLabRouter } from './routes/attack-lab.js';
 import { getDatabaseStatus } from './db/store.js';
+import { currentUser, requireAuth } from './auth.js';
 
 const app = express();
 const configuredOrigins = (process.env.FRONTEND_ORIGIN || 'http://localhost:5173')
@@ -35,8 +36,8 @@ app.get('/api/catalog', (_req, res) => res.json({ catalog, attackProduct }));
 app.use('/api/auth', authRouter);
 app.use('/api/policies', policyRouter);
 app.use('/api/attack-lab', attackLabRouter);
-app.get('/api/dashboard/summary', async (_req, res) => {
-  const records = await import('./db/store.js').then(store => store.listLedger());
+app.get('/api/dashboard/summary', requireAuth, async (req, res) => {
+  const records = await import('./db/store.js').then(store => store.listLedger(currentUser(req)!.id));
   const confirmed = records.filter(record => record.status === 'CAPTURED');
   const reserved = records.filter(record => ['ORDER_CREATED', 'BUYER_APPROVED'].includes(record.status));
   res.json({
@@ -48,9 +49,9 @@ app.get('/api/dashboard/summary', async (_req, res) => {
     confirmedPayments: confirmed.length,
   });
 });
-app.get('/api/dashboard/activity', async (_req, res) => res.json(await import('./db/store.js').then(store => store.listLedger())));
-app.get('/api/dashboard/analytics', async (_req, res) => {
-  const records = await import('./db/store.js').then(store => store.listLedger());
+app.get('/api/dashboard/activity', requireAuth, async (req, res) => res.json(await import('./db/store.js').then(store => store.listLedger(currentUser(req)!.id))));
+app.get('/api/dashboard/analytics', requireAuth, async (req, res) => {
+  const records = await import('./db/store.js').then(store => store.listLedger(currentUser(req)!.id));
   const categories = new Map<string, number>();
   for (const record of records.filter(item => item.status === 'CAPTURED')) {
     const category = String((record.product as { category?: string })?.category || 'Unknown');
@@ -58,7 +59,7 @@ app.get('/api/dashboard/analytics', async (_req, res) => {
   }
   res.json({ categories: Object.fromEntries(categories), daily: records.filter(item => item.status === 'CAPTURED').map(record => ({ date: record.createdAt.slice(0, 10), amount: Number((record.product as { amount?: number })?.amount || 0) })) });
 });
-app.get('/api/purchases', async (_req, res) => res.json(await import('./db/store.js').then(store => store.listLedger())));
+app.get('/api/purchases', requireAuth, async (req, res) => res.json(await import('./db/store.js').then(store => store.listLedger(currentUser(req)!.id))));
 app.use('/api/purchase', purchaseRouter);
 app.use('/api/purchases', purchaseRouter);
 app.use('/api/webhooks', webhookRouter);

@@ -31,8 +31,8 @@ function App() {
   const [dark, setDark] = useState(true);
   const [paypalNotice, setPaypalNotice] = useState('');
 
-  const refreshLedger = () => fetch(`${API}/api/purchase/audit-log`).then(r => r.json()).then(setLedger).catch(() => {});
-  const refreshSummary = () => fetch(`${API}/api/dashboard/summary`).then(r => r.json()).then(summary => {
+  const refreshLedger = () => fetch(`${API}/api/purchase/audit-log`, { headers: authHeaders() }).then(r => r.json()).then(setLedger).catch(() => {});
+  const refreshSummary = () => fetch(`${API}/api/dashboard/summary`, { headers: authHeaders() }).then(r => r.json()).then(summary => {
     setPolicy(current => ({ ...current, spentAmount: Number(summary.totalSpent || 0), reservedAmount: Number(summary.reservedAmount || 0) }));
   }).catch(() => {});
   useEffect(() => {
@@ -66,7 +66,7 @@ function App() {
       if (!response.ok) localStorage.removeItem('agentwallet_session');
       setAuthenticated(response.ok);
     }).catch(() => setAuthenticated(false));
-    fetch(`${API}/api/dashboard/analytics`).then(response => response.json()).then(setAnalytics).catch(() => {});
+    fetch(`${API}/api/dashboard/analytics`, { headers: authHeaders() }).then(response => response.json()).then(setAnalytics).catch(() => {});
     refreshSummary();
   }, []);
 
@@ -79,7 +79,7 @@ function App() {
     setResult(null);
     try {
       const response = await fetch(`${API}/api/purchase/evaluate`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() },
         body: JSON.stringify({ task, product: selected || undefined, policy }),
       });
       const data = await response.json();
@@ -97,7 +97,7 @@ function App() {
     setLoading(true);
     try {
       const response = await fetch(`${API}/api/purchase/${result.evaluationId}/approve`, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ approved }),
+        method: 'POST', headers: { 'Content-Type': 'application/json', ...authHeaders() }, body: JSON.stringify({ approved }),
       });
       const data = await response.json();
       if (!response.ok) {
@@ -118,7 +118,7 @@ function App() {
     if (!result?.evaluationId) return;
     setLoading(true);
     try {
-      const response = await fetch(`${API}/api/purchase/${result.evaluationId}/capture`, { method: 'POST' });
+      const response = await fetch(`${API}/api/purchase/${result.evaluationId}/capture`, { method: 'POST', headers: authHeaders() });
       const data = await response.json();
       setResult({ ...result, ...data });
       if (data.status === 'CAPTURED') setPaypalNotice('Payment captured successfully in PayPal Sandbox.');
@@ -142,6 +142,9 @@ function App() {
       if (data.token) localStorage.setItem('agentwallet_session', data.token);
       setAuthenticated(true);
       setPage('workspace');
+      refreshLedger();
+      refreshSummary();
+      fetch(`${API}/api/dashboard/analytics`, { headers: authHeaders() }).then(response => response.json()).then(setAnalytics).catch(() => {});
     } catch {
       setAuthError('Unable to connect to AgentWallet API. Make sure the backend is running on port 4000.');
     }
