@@ -46,10 +46,11 @@ The repository includes [`render.yaml`](./render.yaml) for the API and [`fronten
    - `GROQ_API_KEY`: your Groq API key.
    - `PAYPAL_CLIENT_ID` and `PAYPAL_CLIENT_SECRET`: PayPal **Sandbox** credentials.
    - `FRONTEND_ORIGIN`: the final Vercel URL, for example `https://agentwallet.vercel.app`.
-2. Wait for the Render service to report healthy at `https://YOUR_RENDER_HOST/health`.
+2. The current Render backend is `https://agentwallet-pf6t.onrender.com`. Verify it at `https://agentwallet-pf6t.onrender.com/health`.
 3. In Vercel, import this repository and set **Root Directory** to `frontend`.
-4. Add the Vercel environment variable `VITE_API_URL=https://YOUR_RENDER_HOST`.
+4. Add the Vercel environment variable `VITE_API_URL=https://agentwallet-pf6t.onrender.com`.
 5. Redeploy the Vercel project after saving the environment variable.
-6. Register `https://YOUR_RENDER_HOST/api/webhooks/paypal` in the PayPal Developer Dashboard and then set `PAYPAL_WEBHOOK_ID` in Render.
+6. Set Render's `FRONTEND_ORIGIN` to the final Vercel URL.
+7. Register `https://agentwallet-pf6t.onrender.com/api/webhooks/paypal` in the PayPal Developer Dashboard and then set `PAYPAL_WEBHOOK_ID` in Render.
 
 Never commit `backend/.env` or paste credentials into GitHub. Rotate credentials that have previously been exposed.
