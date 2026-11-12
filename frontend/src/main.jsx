@@ -29,11 +29,36 @@ function App() {
   const [ledger, setLedger] = useState([]);
   const [loading, setLoading] = useState(false);
   const [dark, setDark] = useState(true);
+  const [paypalNotice, setPaypalNotice] = useState('');
 
   const refreshLedger = () => fetch(`${API}/api/purchase/audit-log`).then(r => r.json()).then(setLedger).catch(() => {});
   const refreshSummary = () => fetch(`${API}/api/dashboard/summary`).then(r => r.json()).then(summary => {
     setPolicy(current => ({ ...current, spentAmount: Number(summary.totalSpent || 0), reservedAmount: Number(summary.reservedAmount || 0) }));
   }).catch(() => {});
+  useEffect(() => {
+    const handlePayPalReturn = (event) => {
+      if (event.origin !== window.location.origin || event.data?.type !== 'AGENTWALLET_PAYPAL_RETURN') return;
+      setPaypalNotice(event.data.status === 'success'
+        ? 'PayPal approval completed. Return to this window and capture the payment.'
+        : 'PayPal approval was cancelled. No payment was captured.');
+    };
+    const params = new URLSearchParams(window.location.search);
+    const paypalStatus = params.get('paypal');
+    if (paypalStatus === 'success' || paypalStatus === 'cancelled') {
+      if (window.opener && !window.opener.closed) {
+        window.opener.postMessage({ type: 'AGENTWALLET_PAYPAL_RETURN', status: paypalStatus === 'success' ? 'success' : 'cancelled' }, window.location.origin);
+        window.close();
+      } else {
+        setPaypalNotice(paypalStatus === 'success'
+          ? 'PayPal approval completed. Return to the workspace and capture the payment.'
+          : 'PayPal approval was cancelled. No payment was captured.');
+      }
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+    window.addEventListener('message', handlePayPalReturn);
+    return () => window.removeEventListener('message', handlePayPalReturn);
+  }, []);
+
   useEffect(() => {
     fetch(`${API}/api/catalog`).then(r => r.json()).then(data => setCatalog(data.catalog)).catch(() => {});
     refreshLedger();
@@ -96,6 +121,7 @@ function App() {
       const response = await fetch(`${API}/api/purchase/${result.evaluationId}/capture`, { method: 'POST' });
       const data = await response.json();
       setResult({ ...result, ...data });
+      if (data.status === 'CAPTURED') setPaypalNotice('Payment captured successfully in PayPal Sandbox.');
       refreshLedger();
       refreshSummary();
     } finally {
@@ -153,6 +179,7 @@ function App() {
       </div>
     </header>
 
+    {paypalNotice && <div className="paypalNotice" role="status">{paypalNotice}<button type="button" onClick={() => setPaypalNotice('')}>×</button></div>}
     {!authenticated && authPage && <AuthScreen {...{ authPage, setAuthPage, authForm, setAuthForm, authError, submitAuth }} />}
     {authenticated && page === 'workspace' && <Workspace {...{ task, setTask, product, setProduct, catalog, result, loading, runPipeline, approve, capturePayment, policy, remaining, utilization, loadAttack }} />}
     {authenticated && page === 'rules' && <Rules {...{ policy, setPolicy, updateList }} />}
@@ -195,7 +222,11 @@ function DecisionCard({ result, loading, runPipeline, approve, capturePayment })
   const canApprove = result?.status === 'PENDING_APPROVAL';
   const canCreateOrder = result?.status === 'APPROVED';
   const orderCreated = result?.status === 'ORDER_CREATED';
-  return <section className={`card decision ${result?.status === 'BLOCKED' ? 'danger' : ''}`}><div className="cardTitle"><span>♙</span><div><h3>Independent auditor</h3><small>Second-model verdict appears here.</small></div></div>{loading ? <div className="empty"><div className="spinner" />Running Planner, Guardrails, and Auditor…</div> : result ? <><div className="decisionHead"><div><span className="status">{result.status?.replaceAll('_', ' ')}</span><h2>{result.explanation || result.auditor?.reason || result.guardrail?.reasons?.join(' ') || result.message}</h2></div><strong className="risk">{result.auditor?.risk_score ?? '—'}<small>RISK /100</small></strong></div><div className="miniGrid"><span>GUARDRAILS<b>{result.guardrail?.passed ? 'Passed' : 'Blocked'}</b></span><span>AUDITOR<b>{result.auditor?.decision || 'Skipped'}</b></span><span>PAYPAL<b>{result.pipeline?.payment || 'WAITING'}</b></span></div>{canApprove && <div className="approvalActions"><button className="primary" onClick={() => approve(true)}>Approve and create PayPal order</button><button className="linkButton" onClick={() => approve(false)}>Reject</button></div>}{canCreateOrder && <div className="approvalActions"><button className="primary" onClick={() => approve(true)}>Create PayPal Sandbox order</button></div>}{orderCreated && result.approvalUrl && <div className="approvalActions"><a className="primary" href={result.approvalUrl} target="_blank" rel="noreferrer">Open PayPal Sandbox approval</a><button className="linkButton" onClick={capturePayment}>Capture after PayPal approval</button></div>}</> : <div className="empty">Run a task to see Planner, Guardrails, and Auditor decisions.</div>}</section>;
+  function openPayPalApproval(event) {
+    event.preventDefault();
+    window.open(result.approvalUrl, 'agentwallet-paypal-approval', 'popup,width=520,height=760,resizable=yes,scrollbars=yes');
+  }
+  return <section className={`card decision ${result?.status === 'BLOCKED' ? 'danger' : ''}`}><div className="cardTitle"><span>♙</span><div><h3>Independent auditor</h3><small>Second-model verdict appears here.</small></div></div>{loading ? <div className="empty"><div className="spinner" />Running Planner, Guardrails, and Auditor…</div> : result ? <><div className="decisionHead"><div><span className="status">{result.status?.replaceAll('_', ' ')}</span><h2>{result.explanation || result.auditor?.reason || result.guardrail?.reasons?.join(' ') || result.message}</h2></div><strong className="risk">{result.auditor?.risk_score ?? '—'}<small>RISK /100</small></strong></div><div className="miniGrid"><span>GUARDRAILS<b>{result.guardrail?.passed ? 'Passed' : 'Blocked'}</b></span><span>AUDITOR<b>{result.auditor?.decision || 'Skipped'}</b></span><span>PAYPAL<b>{result.pipeline?.payment || 'WAITING'}</b></span></div>{canApprove && <div className="approvalActions"><button className="primary" onClick={() => approve(true)}>Approve and create PayPal order</button><button className="linkButton" onClick={() => approve(false)}>Reject</button></div>}{canCreateOrder && <div className="approvalActions"><button className="primary" onClick={() => approve(true)}>Create PayPal Sandbox order</button></div>}{orderCreated && result.approvalUrl && <div className="approvalActions"><button className="primary" onClick={openPayPalApproval}>Open PayPal Sandbox approval</button><button className="linkButton" onClick={capturePayment}>Capture after PayPal approval</button></div>}</> : <div className="empty">Run a task to see Planner, Guardrails, and Auditor decisions.</div>}</section>;
 }
 
 function Rules({ policy, setPolicy, updateList }) {

@@ -42,6 +42,8 @@
   .productPicker{display:grid;gap:8px;margin-top:22px;font-size:12px;color:#91a5b8}
   .productPicker select{width:100%;padding:12px 14px;border:1px solid rgba(148,163,184,.25);border-radius:10px;background:#0b1220;color:#e5e7eb;font:inherit}
   .productPicker select:focus{outline:2px solid #39d39f;outline-offset:1px}
+  .paypalNotice{position:fixed;top:88px;right:24px;z-index:20;max-width:420px;padding:14px 42px 14px 16px;border:1px solid rgba(57,211,159,.5);border-radius:12px;background:#10251f;color:#d9fff0;box-shadow:0 12px 30px rgba(0,0,0,.25)}
+  .paypalNotice button{position:absolute;top:8px;right:10px;border:0;background:transparent;color:inherit;font-size:20px;cursor:pointer}
   .taskFoot{font-size:14px}
   .primary,.attackButton{padding:14px 18px;font-size:14px}
   .decision h2{font-size:21px}
