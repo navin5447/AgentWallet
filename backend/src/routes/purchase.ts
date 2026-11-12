@@ -7,8 +7,14 @@ import { captureOrder, createOrder } from '../paypal.js';
 import { getLedger, listLedger, saveLedger, updateLedger } from '../db/store.js';
 
 export const purchaseRouter = Router();
-const pipeline = (status: PurchaseStatus, auditor: Record<string, unknown> | null = null) => ({
-  planner: ['PLANNED', 'EVALUATED', 'PENDING_APPROVAL', 'APPROVED', 'ORDER_CREATED', 'BUYER_APPROVED', 'CAPTURED'].includes(status) ? 'COMPLETED' : status === 'DRAFT' ? 'WAITING' : 'FAILED',
+const pipeline = (
+  status: PurchaseStatus,
+  auditor: Record<string, unknown> | null = null,
+  planner: Record<string, unknown> | null = null,
+) => ({
+  planner: planner || ['PLANNED', 'EVALUATED', 'PENDING_APPROVAL', 'APPROVED', 'ORDER_CREATED', 'BUYER_APPROVED', 'CAPTURED'].includes(status)
+    ? 'COMPLETED'
+    : status === 'DRAFT' ? 'WAITING' : 'FAILED',
   guardrails: ['EVALUATED', 'PENDING_APPROVAL', 'APPROVED', 'ORDER_CREATED', 'BUYER_APPROVED', 'CAPTURED'].includes(status) ? 'COMPLETED' : status === 'BLOCKED' ? 'BLOCKED' : 'WAITING',
   auditor: ['PENDING_APPROVAL', 'APPROVED', 'ORDER_CREATED', 'BUYER_APPROVED', 'CAPTURED'].includes(status) ? 'COMPLETED' : status === 'BLOCKED' ? (auditor ? 'BLOCKED' : 'SKIPPED') : 'WAITING',
   payment: status === 'CAPTURED' ? 'CAPTURED' : status === 'ORDER_CREATED' ? 'ORDER_CREATED' : status === 'BUYER_APPROVED' ? 'BUYER_APPROVED' : 'WAITING',
@@ -81,7 +87,7 @@ purchaseRouter.post('/evaluate', async (req, res) => {
 
   const record = await saveLedger({ task, product, guardrail, planner, auditor, status });
   return res.json({
-    evaluationId: record.id, status, product, guardrail, planner, auditor, pipeline: pipeline(status, auditor),
+    evaluationId: record.id, status, product, guardrail, planner, auditor, pipeline: pipeline(status, auditor, planner),
     explanation, paymentCreated: false,
     message: status === 'APPROVED' || status === 'PENDING_APPROVAL' ? 'Checks completed. Payment has not been created.' : 'No payment was created.',
   });
